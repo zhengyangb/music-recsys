@@ -5,6 +5,7 @@ PYSPARK_PYTHON=$(which python) pyspark
 
 from pyspark.ml.feature import StringIndexer
 from pyspark.ml.recommendation import ALS
+from pyspark.ml.evaluation import RegressionEvaluator
 
 train = spark.read.parquet('hdfs:/user/bm106/pub/project/cf_train.parquet')
 # downsample the dataset
@@ -36,6 +37,11 @@ model = als.fit(train)
 val = spark.read.parquet('hdfs:/user/bm106/pub/project/cf_validation.parquet')
 val = indexer_user.fit(val).transform(val)
 val = indexer_track.fit(val).transform(val)
+predictions = model.transform(val)
+evaluator = RegressionEvaluator(metricName="rmse", labelCol="count", predictionCol="prediction")
+rmse = evaluator.evaluate(predictions)
+print("Root-mean-square error = " + str(rmse))
+
 ## ALS.trainImplicit is the old version
 ## use implicitPrefs = True for the new version
 #finding best set of parameters
