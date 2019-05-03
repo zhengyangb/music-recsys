@@ -6,12 +6,11 @@ PYSPARK_PYTHON=$(which python) pyspark
 from pyspark.ml.feature import StringIndexer
 from pyspark.ml.recommendation import ALS
 
-train = spark.read.parquet('hdfs:/user/bm106/pub/project/cf_train.parquet').rdd
+train = spark.read.parquet('hdfs:/user/bm106/pub/project/cf_train.parquet')
 # downsample the dataset
 train = train.sample(False, 0.1, seed=1)
-train = spark.createDataFrame(train)
-# print((train.count(),len(train.columns)))
-# (4978812, 4)
+# train.count()
+# 4982701
 
 
 # transform the user and item identifiers (strings) into numerical index representations
@@ -31,8 +30,14 @@ train_rep_user = train.repartition(100_000,'user_id_indexed')
 train_rep_user.write.format("parquet").mode("overwrite").save('transformed_train.parquet')
 
 # ALS model
-als = ALS(maxIter=5, regParam=0.01, userCol="user_id_indexed", itemCol="track_id_indexed", ratingCol="count", coldStartStrategy="drop")
+als = ALS(maxIter=5, regParam=0.01, userCol="user_id_indexed", itemCol="track_id_indexed", ratingCol="count", implicitPrefs=True, coldStartStrategy="drop")
+model = als.fit(train)
 
+val = spark.read.parquet('hdfs:/user/bm106/pub/project/cf_validation.parquet')
+val = indexer_user.fit(val).transform(val)
+val = indexer_track.fit(val).transform(val)
+## ALS.trainImplicit is the old version
+## use implicitPrefs = True for the new version
 #finding best set of parameters
 ranks  = [5,10,15,20]
 reguls = [0.1, 1,10]
