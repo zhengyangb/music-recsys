@@ -1,0 +1,30 @@
+JAVA_OPTS="-Xmx512000000 "
+export JAVA_OPTS
+PYSPARK_PYTHON=$(which python) pyspark
+
+
+from pyspark.ml.feature import StringIndexer
+from pyspark.ml.recommendation import ALS
+
+train = spark.read.parquet('hdfs:/user/bm106/pub/project/cf_train.parquet').rdd
+train = spark.createDataFrame(train)
+
+# transform the user and item identifiers (strings) into numerical index representations
+indexer_user = StringIndexer(inputCol="user_id", outputCol="user_id_indexed")
+train = indexer_user.fit(train).transform(train)
+
+indexer_track = StringIndexer(inputCol="track_id", outputCol="track_id_indexed")
+train = indexer_track.fit(train).transform(train)
+
+# TODO: Too big? --- heap space error 
+
+# Try index user first then save
+# then load, then index item
+# then save
+
+
+train_rep_user = train.repartition(10000000,'user_id_indexed')
+train_rep_user.write.format("parquet").mode("overwrite").save('transformed_train.parquet')
+
+# ALS model
+als = ALS(maxIter=5, regParam=0.01, userCol="user_id_indexed", itemCol="track_id_indexed", ratingCol="count", coldStartStrategy="drop")

@@ -61,7 +61,7 @@ def main(spark, data_file, model_file):
 if __name__ == "__main__":
 
     # Create the spark session object
-    spark = SparkSession.builder.appName('unsupervised_train').getOrCreate()
+    spark = SparkSession.builder.appName('RecomSys').getOrCreate()
 
     # Get the filename from the command line
     data_file = sys.argv[1]
