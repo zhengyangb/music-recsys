@@ -7,7 +7,12 @@ from pyspark.ml.feature import StringIndexer
 from pyspark.ml.recommendation import ALS
 
 train = spark.read.parquet('hdfs:/user/bm106/pub/project/cf_train.parquet').rdd
+# downsample the dataset
+train = train.sample(False, 0.1, seed=1)
 train = spark.createDataFrame(train)
+# print((train.count(),len(train.columns)))
+# (4978812, 4)
+
 
 # transform the user and item identifiers (strings) into numerical index representations
 indexer_user = StringIndexer(inputCol="user_id", outputCol="user_id_indexed")
@@ -16,15 +21,50 @@ train = indexer_user.fit(train).transform(train)
 indexer_track = StringIndexer(inputCol="track_id", outputCol="track_id_indexed")
 train = indexer_track.fit(train).transform(train)
 
-# TODO: Too big? --- heap space error 
+# TODO: Too big? --- heap space error
 
 # Try index user first then save
 # then load, then index item
 # then save
 
-
-train_rep_user = train.repartition(10000000,'user_id_indexed')
+train_rep_user = train.repartition(100_000,'user_id_indexed')
 train_rep_user.write.format("parquet").mode("overwrite").save('transformed_train.parquet')
 
 # ALS model
 als = ALS(maxIter=5, regParam=0.01, userCol="user_id_indexed", itemCol="track_id_indexed", ratingCol="count", coldStartStrategy="drop")
+
+#finding best set of parameters
+ranks  = [5,10,15,20]
+reguls = [0.1, 1,10]
+iters  = [5,10,20]
+alpha = [10, 20, 40]
+
+finalModel = None
+finalRank  = 0
+finalRegul = float(0)
+finalIter  = -1
+finalDist   = float(300)
+finalAlpha = float(0)
+
+#[START train_model]
+for cRank, cRegul, cIter, cAlpha in itertools.product(ranks, reguls, iters, alpha):
+    model = ALS.trainImplicit(rddTraining, cRank, cIter, float(cRegul),alpha=float(cAlpha))
+    dist = howFarAreWe(model, rddValidating, nbValidating)
+    if dist < finalDist:
+        print(cIter, cRank,cAlpha,cRegul)
+        print("Best so far:%f" % dist)
+        finalModel = model
+        finalRank  = cRank
+        finalRegul = cRegul
+        finalIter  = cIter
+        finalDist  = dist
+        finalAlpha  = cAlpha
+
+print("Rank %i" % finalRank)
+print("Regul %f" % finalRegul)
+print("Iter %i" % finalIter)
+print("Dist %f" % finalDist)
+print("Alpha %f" % finalAlpha)
+
+model = ALS.trainImplicit(rddTraining, rank=finalRank, iterations=finalIter, lambda_= float(finalRegul),alpha=float(finalAlpha))
+predictions = model.transform(test)
