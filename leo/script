@@ -6,6 +6,7 @@ PYSPARK_PYTHON=$(which python) pyspark
 from pyspark.ml.feature import StringIndexer
 from pyspark.ml.recommendation import ALS
 from pyspark.ml.evaluation import RegressionEvaluator
+from pyspark.mllib.evaluation import RankingMetrics
 
 train = spark.read.parquet('hdfs:/user/bm106/pub/project/cf_train.parquet')
 # downsample the dataset
@@ -27,8 +28,7 @@ train = indexer_track.fit(train).transform(train)
 # then load, then index item
 # then save
 
-train_rep_user = train.repartition(100_000,'user_id_indexed')
-train_rep_user.write.format("parquet").mode("overwrite").save('transformed_train.parquet')
+train.write.format("parquet").mode("overwrite").save('transformed_train.parquet')
 
 # ALS model
 als = ALS(maxIter=5, regParam=0.01, userCol="user_id_indexed", itemCol="track_id_indexed", ratingCol="count", implicitPrefs=True, coldStartStrategy="drop")
@@ -38,9 +38,10 @@ val = spark.read.parquet('hdfs:/user/bm106/pub/project/cf_validation.parquet')
 val = indexer_user.fit(val).transform(val)
 val = indexer_track.fit(val).transform(val)
 predictions = model.transform(val)
-evaluator = RegressionEvaluator(metricName="rmse", labelCol="count", predictionCol="prediction")
-rmse = evaluator.evaluate(predictions)
-print("Root-mean-square error = " + str(rmse))
+predictionAndLabels = predictions.select('prediction', 'count').rdd
+metrics = RankingMetrics(predictionAndLabels)
+# metrics.meanAveragePrecision
+
 
 ## ALS.trainImplicit is the old version
 ## use implicitPrefs = True for the new version
