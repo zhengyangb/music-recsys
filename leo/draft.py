@@ -14,7 +14,7 @@ import sys
 
 # And pyspark.sql to get the spark session
 from pyspark.sql import SparkSession
-
+from pyspark import SparkConf
 from pyspark.ml.feature import StringIndexer
 from pyspark.ml.recommendation import ALS
 from pyspark.ml.evaluation import RegressionEvaluator
