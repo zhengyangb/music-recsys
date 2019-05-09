@@ -4,7 +4,7 @@
 Usage:
 
     $ spark-submit train_path val_path
-    train_path = 'hdfs:/user/zb612/transformed_train.parquet'
+    train_path = 'hdfs:/user/bm106/pub/project/cf_train.parquet'
     val_path = 'hdfs:/user/bm106/pub/project/cf_validation.parquet'
 '''
 
@@ -22,7 +22,7 @@ from pyspark.mllib.evaluation import RankingMetrics
 import pyspark.sql.functions as F
 from pyspark.sql.functions import expr
 import itertools as it
-def main(spark, data_file, model_file):
+def main(spark, train_path, val_path):
     '''Main routine for unsupervised training
 
     Parameters
@@ -50,8 +50,10 @@ def main(spark, data_file, model_file):
     val = spark.read.parquet(val_path)
     indexer_user = StringIndexer(inputCol="user_id", outputCol="user_id_indexed")
     indexer_track = StringIndexer(inputCol="track_id", outputCol="track_id_indexed")
-    val = indexer_user.fit(val).transform(val)
-    val = indexer_track.fit(val).transform(val)
+    train = indexer_user.fit(train).transform(train)
+    train = indexer_track.fit(train).transform(train)
+    val = indexer_user.transform(val)
+    val = indexer_track.transform(val)
 
     # ALS model
     rank_  = [5,10,20]
