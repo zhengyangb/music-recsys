@@ -61,9 +61,11 @@ def main(spark, data_file, model_file):
     ndcg_list = []
     mpa_list = []
     for i in param_grid:
+        print('Start Training for {}'.format(i))
         als = ALS(rank = i[0], maxIter=5, regParam=i[1], userCol="user_id_indexed", itemCol="track_id_indexed", ratingCol="count", implicitPrefs=True, \
             alpha=i[2], nonnegative=True, coldStartStrategy="drop")
         model = als.fit(train)
+        print('Finish Training for {}'.format(i))
 
         predictions = model.transform(val)
 
@@ -78,7 +80,7 @@ def main(spark, data_file, model_file):
         pred_true_rdd = pred_label.join(F.broadcast(true_label), 'user_id_indexed', 'inner') \
                     .rdd \
                     .map(lambda row: (row[1], row[2]))
-
+        print('Start Evaluating for {}'.format(i))
         metrics = RankingMetrics(pred_true_rdd)
         ndcg = metrics.ndcgAt(500)
         mpa = metrics.precisionAt(500)
