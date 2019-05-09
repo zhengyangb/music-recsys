@@ -8,7 +8,7 @@ Usage:
     val_path = 'hdfs:/user/bm106/pub/project/cf_validation.parquet'
 '''
 
-# nohup spark-submit --conf spark.driver.memory=16g --conf spark.executor.memory=16g --conf spark.sql.shuffle.partitions=40 draft.py hdfs:/user/zb612/transformed_train.parquet hdfs:/user/bm106/pub/project/cf_validation.parquet &>final.log&
+# nohup spark-submit --conf spark.driver.memory=16g --conf spark.executor.memory=16g --conf spark.sql.shuffle.partitions=40 draft.py hdfs:/user/bm106/pub/project/cf_train.parquet hdfs:/user/bm106/pub/project/cf_validation.parquet &>final.log&
 # We need sys to get the command line arguments
 import sys
 
