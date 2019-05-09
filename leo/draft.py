@@ -84,7 +84,7 @@ def main(spark, data_file, model_file):
         mpa = metrics.precisionAt(500)
         ndcg_list.append(ndcg)
         mpa_list.append(mpa)
-        print(param_grid[i], ndcg, mpa)
+        print(i, ndcg, mpa)
 
     pass
 
