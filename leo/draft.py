@@ -4,11 +4,11 @@
 Usage:
 
     $ spark-submit train_path val_path
-    train_path : hdfs:/user/zb612/transformed_train.parquet
-    val_path : hdfs:/user/bm106/pub/project/cf_validation.parquet
+    train_path = 'hdfs:/user/zb612/transformed_train.parquet'
+    val_path = 'hdfs:/user/bm106/pub/project/cf_validation.parquet'
 '''
 
-
+# spark-submit --conf spark.driver.memory=16g --conf spark.executor.memory=16g draft.py hdfs:/user/zb612/transformed_train.parquet hdfs:/user/bm106/pub/project/cf_validation.parquet
 # We need sys to get the command line arguments
 import sys
 
@@ -61,8 +61,8 @@ def main(spark, data_file, model_file):
     ndcg_list = []
     mpa_list = []
     for i in param_grid:
-        als = ALS(rank = rank_, maxIter=5, regParam=regParam_, userCol="user_id_indexed", itemCol="track_id_indexed", ratingCol="count", implicitPrefs=True, \
-            alpha=alpha_, nonnegative=True, coldStartStrategy="drop")
+        als = ALS(rank = i[0], maxIter=5, regParam=i[1], userCol="user_id_indexed", itemCol="track_id_indexed", ratingCol="count", implicitPrefs=True, \
+            alpha=i[2], nonnegative=True, coldStartStrategy="drop")
         model = als.fit(train)
 
         predictions = model.transform(val)
