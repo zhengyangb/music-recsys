@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-'''Part 1: unsupervised model training
-
+'''
 Usage:
 
-    $ spark-submit unsupervised_train.py hdfs:/path/to/file.parquet hdfs:/path/to/save/model
-
+    $ spark-submit train_path val_path
+    train_path : hdfs:/user/zb612/transformed_train.parquet
+    val_path : hdfs:/user/bm106/pub/project/cf_validation.parquet
 '''
 
 
@@ -15,13 +15,13 @@ import sys
 # And pyspark.sql to get the spark session
 from pyspark.sql import SparkSession
 
-# TODO: you may need to add imports here
-from pyspark.ml.clustering import KMeans
-from pyspark.ml.linalg import Vectors
-from pyspark.ml.feature import VectorAssembler
-from pyspark.ml.feature import StandardScaler
-from pyspark.ml import Pipeline
-
+from pyspark.ml.feature import StringIndexer
+from pyspark.ml.recommendation import ALS
+from pyspark.ml.evaluation import RegressionEvaluator
+from pyspark.mllib.evaluation import RankingMetrics
+import pyspark.sql.functions as F
+from pyspark.sql.functions import expr
+import itertools as it
 def main(spark, data_file, model_file):
     '''Main routine for unsupervised training
 
@@ -33,27 +33,59 @@ def main(spark, data_file, model_file):
 
     model_file : string, path to store the serialized model file
     '''
+    # train = spark.read.parquet('hdfs:/user/bm106/pub/project/cf_train.parquet')
+    # # downsample the dataset
+    # train = train.sample(False, 0.1, seed=1)
 
-    dataset = spark.read.parquet(data_file)
+    # # transform the user and item identifiers (strings) into numerical index representations
+    # indexer_user = StringIndexer(inputCol="user_id", outputCol="user_id_indexed")
+    # train = indexer_user.fit(train).transform(train)
 
-    # Select out the 20 attribute columns labeled mfcc_00, mfcc_01, ..., mfcc_19
-    idx_num = [i for i in range(20)]
-    input_col = list(map(select,idx_num))
+    # indexer_track = StringIndexer(inputCol="track_id", outputCol="track_id_indexed")
+    # train = indexer_track.fit(train).transform(train)
 
-    assembler = VectorAssembler(inputCols=input_col, outputCol="features")
+    # train.write.format("parquet").mode("overwrite").save('transformed_train.parquet')
+    
+    train = spark.read.parquet(train_path)
+    val = spark.read.parquet(val_path)
+    indexer_user = StringIndexer(inputCol="user_id", outputCol="user_id_indexed")
+    indexer_track = StringIndexer(inputCol="track_id", outputCol="track_id_indexed")
+    val = indexer_user.fit(val).transform(val)
+    val = indexer_track.fit(val).transform(val)
 
-    # Normalize the features using a StandardScaler
-    scaler = StandardScaler(inputCol="features", outputCol="scaledFeatures", withStd=True, withMean=False)
+    # ALS model
+    rank_  = [5,10,20]
+    regParam_ = [0.1, 1,10]
+    alpha_ = [10, 20, 40]
+    param_grid = it.product(rank_, regParam_, alpha_)
+    ndcg_list = []
+    mpa_list = []
+    for i in param_grid:
+        als = ALS(rank = rank_, maxIter=5, regParam=regParam_, userCol="user_id_indexed", itemCol="track_id_indexed", ratingCol="count", implicitPrefs=True, \
+            alpha=alpha_, nonnegative=True, coldStartStrategy="drop")
+        model = als.fit(train)
 
-    # Fit a K-means clustering model to the standardized data with K=100.
-    kmeans = KMeans(featuresCol='scaledFeatures').setK(100).setSeed(1)
+        predictions = model.transform(val)
 
-    # create pipeline
-    pipeline = Pipeline(stages = [assembler, scaler, kmeans])
-    kmeans_model = pipeline.fit(dataset)
+        pred_label = predictions.select('user_id_indexed', 'track_id_indexed', 'prediction')\
+                                .groupBy('user_id_indexed')\
+                                .agg(expr('collect_list(track_id_indexed) as pred_item'))
 
-    # save the model
-    kmeans_model.save(model_file)
+        true_label = val.select('user_id_indexed', 'track_id_indexed')\
+                                .groupBy('user_id_indexed')\
+                                .agg(expr('collect_list(track_id_indexed) as true_item'))
+
+        pred_true_rdd = pred_label.join(F.broadcast(true_label), 'user_id_indexed', 'inner') \
+                    .rdd \
+                    .map(lambda row: (row[1], row[2]))
+
+        metrics = RankingMetrics(pred_true_rdd)
+        ndcg = metrics.ndcgAt(500)
+        mpa = metrics.precisionAt(500)
+        ndcg_list.append(ndcg)
+        mpa_list.append(mpa)
+        print(param_grid[i], ndcg, mpa)
+
     pass
 
 
@@ -64,10 +96,10 @@ if __name__ == "__main__":
     spark = SparkSession.builder.appName('RecomSys').getOrCreate()
 
     # Get the filename from the command line
-    data_file = sys.argv[1]
+    train_path = sys.argv[1]
 
     # And the location to store the trained model
-    model_file = sys.argv[2]
+    val_path = sys.argv[2]
 
     # Call our main routine
-    main(spark, data_file, model_file)
+    main(spark, train_path, val_path)

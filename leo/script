@@ -7,13 +7,12 @@ from pyspark.ml.feature import StringIndexer
 from pyspark.ml.recommendation import ALS
 from pyspark.ml.evaluation import RegressionEvaluator
 from pyspark.mllib.evaluation import RankingMetrics
-
+import pyspark.sql.functions as F
+from pyspark.sql.functions import expr
+##############################################
 train = spark.read.parquet('hdfs:/user/bm106/pub/project/cf_train.parquet')
 # downsample the dataset
 train = train.sample(False, 0.1, seed=1)
-# train.count()
-# 4982701
-
 
 # transform the user and item identifiers (strings) into numerical index representations
 indexer_user = StringIndexer(inputCol="user_id", outputCol="user_id_indexed")
@@ -22,25 +21,37 @@ train = indexer_user.fit(train).transform(train)
 indexer_track = StringIndexer(inputCol="track_id", outputCol="track_id_indexed")
 train = indexer_track.fit(train).transform(train)
 
-# TODO: Too big? --- heap space error
-
-# Try index user first then save
-# then load, then index item
-# then save
-
 train.write.format("parquet").mode("overwrite").save('transformed_train.parquet')
+##############################################
 
+train = spark.read.parquet('hdfs:/user/zb612/transformed_train.parquet')
 # ALS model
-als = ALS(maxIter=5, regParam=0.01, userCol="user_id_indexed", itemCol="track_id_indexed", ratingCol="count", implicitPrefs=True, coldStartStrategy="drop")
+als = ALS(maxIter=5, regParam=0.01, userCol="user_id_indexed", itemCol="track_id_indexed", ratingCol="count", implicitPrefs=True, alpha=1.0, nonnegative=True, \
+	coldStartStrategy="drop")
 model = als.fit(train)
 
 val = spark.read.parquet('hdfs:/user/bm106/pub/project/cf_validation.parquet')
 val = indexer_user.fit(val).transform(val)
 val = indexer_track.fit(val).transform(val)
 predictions = model.transform(val)
-predictionAndLabels = predictions.select('prediction', 'count').rdd
-metrics = RankingMetrics(predictionAndLabels)
-# metrics.meanAveragePrecision
+
+pred_label = predictions.select('user_id_indexed', 'track_id_indexed', 'prediction')\
+						.groupBy('user_id_indexed')\
+						.agg(expr('collect_list(track_id_indexed) as pred_item'))
+
+true_label = val.select('user_id_indexed', 'track_id_indexed')\
+						.groupBy('user_id_indexed')\
+						.agg(expr('collect_list(track_id_indexed) as true_item'))
+
+pred_true_rdd = pred_label.join(F.broadcast(true_label), 'user_id_indexed', 'inner') \
+            .rdd \
+            .map(lambda row: (row[1], row[2]))
+
+metrics = RankingMetrics(pred_true_rdd)
+ndcg = metrics.ndcgAt(500)
+mpa = metrics.precisionAt(500)
+
+
 
 
 ## ALS.trainImplicit is the old version
@@ -80,3 +91,17 @@ print("Alpha %f" % finalAlpha)
 
 model = ALS.trainImplicit(rddTraining, rank=finalRank, iterations=finalIter, lambda_= float(finalRegul),alpha=float(finalAlpha))
 predictions = model.transform(test)
+
+## make predictions
+row = [3704.0]
+myrdd = sc.parallelize([row])
+schemaPeople = sqlContext.createDataFrame(myrdd, schema)
+res = model.recommendForUserSubset(schemaPeople,5)
+res.show()
+
+val.createOrReplaceTempView('val')
+user_id = spark.sql('SELECT DISTINCT(user_id_indexed) FROM val')
+res = model.recommendForUserSubset(user_id,2)
+
+full = user_id.crossJoin(item_id)
+full = full.selectExpr("user_id_indexed as user_id_indexed","id as track_id_indexed")
