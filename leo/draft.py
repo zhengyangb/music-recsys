@@ -8,7 +8,7 @@ Usage:
     val_path = 'hdfs:/user/bm106/pub/project/cf_validation.parquet'
 '''
 
-# spark-submit --conf spark.driver.memory=16g --conf spark.executor.memory=16g draft.py hdfs:/user/zb612/transformed_train.parquet hdfs:/user/bm106/pub/project/cf_validation.parquet
+# nohup spark-submit --conf spark.driver.memory=16g --conf spark.executor.memory=16g draft.py hdfs:/user/zb612/transformed_train.parquet hdfs:/user/bm106/pub/project/cf_validation.parquet &>final.log&
 # We need sys to get the command line arguments
 import sys
 
@@ -95,7 +95,15 @@ def main(spark, data_file, model_file):
 if __name__ == "__main__":
 
     # Create the spark session object
-    spark = SparkSession.builder.appName('RecomSys').getOrCreate()
+    conf = SparkConf()
+    conf.set("spark.executor.memory", "16G")
+    conf.set("spark.driver.memory", '16G')
+    conf.set("spark.executor.cores", "4")
+    conf.set('spark.executor.instances','10')
+    conf.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
+    conf.set("spark.default.parallelism", "40")
+    conf.set("spark.sql.shuffle.partitions", "40")
+    spark = SparkSession.builder.config(conf=conf).appName('RecomSys').getOrCreate()
 
     # Get the filename from the command line
     train_path = sys.argv[1]
