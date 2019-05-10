@@ -39,7 +39,7 @@ def main(spark, train_path, val_path):
 
     indexer_user = StringIndexer(inputCol="user_id", outputCol="user_id_indexed")
     indexer_user_model = indexer_user.fit(train)
-    indexer_track = StringIndexer(inputCol="track_id", outputCol="track_id_indexed")
+    indexer_track = StringIndexer(inputCol="track_id", outputCol="track_id_indexed", handleInvalid='skip')
     indexer_track_model = indexer_track.fit(train)
 
     train = indexer_user_model.transform(train)
