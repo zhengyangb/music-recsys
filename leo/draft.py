@@ -29,31 +29,24 @@ def main(spark, train_path, val_path):
     ----------
     spark : SparkSession object
 
-    data_file : string, path to the parquet file to load
+    train_path : string, path to the training parquet file to load
 
-    model_file : string, path to store the serialized model file
+    val_path : string, path to the validation parquet file to load
     '''
-    # train = spark.read.parquet('hdfs:/user/bm106/pub/project/cf_train.parquet')
-    # # downsample the dataset
-    # train = train.sample(False, 0.1, seed=1)
-
-    # # transform the user and item identifiers (strings) into numerical index representations
-    # indexer_user = StringIndexer(inputCol="user_id", outputCol="user_id_indexed")
-    # train = indexer_user.fit(train).transform(train)
-
-    # indexer_track = StringIndexer(inputCol="track_id", outputCol="track_id_indexed")
-    # train = indexer_track.fit(train).transform(train)
-
-    # train.write.format("parquet").mode("overwrite").save('transformed_train.parquet')
     
     train = spark.read.parquet(train_path)
     val = spark.read.parquet(val_path)
+
     indexer_user = StringIndexer(inputCol="user_id", outputCol="user_id_indexed")
+    indexer_user_model = indexer_user.fit(train)
     indexer_track = StringIndexer(inputCol="track_id", outputCol="track_id_indexed")
-    train = indexer_user.fit(train).transform(train)
-    train = indexer_track.fit(train).transform(train)
-    val = indexer_user.transform(val)
-    val = indexer_track.transform(val)
+    indexer_track_model = indexer_track.fit(train)
+
+    train = indexer_user_model.transform(train)
+    train = indexer_track_model.transform(train)
+
+    val = indexer_user_model.transform(val)
+    val = indexer_track_model.transform(val)
 
     # ALS model
     rank_  = [5,10,20]
@@ -82,6 +75,7 @@ def main(spark, train_path, val_path):
         pred_true_rdd = pred_label.join(F.broadcast(true_label), 'user_id_indexed', 'inner') \
                     .rdd \
                     .map(lambda row: (row[1], row[2]))
+
         print('Start Evaluating for {}'.format(i))
         metrics = RankingMetrics(pred_true_rdd)
         ndcg = metrics.ndcgAt(500)
