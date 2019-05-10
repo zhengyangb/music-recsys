@@ -49,8 +49,8 @@ def main(spark, train_path, val_path):
     val = indexer_track_model.transform(val)
 
     # ALS model
-    rank_  = [5,10,20]
-    regParam_ = [0.1, 1,10]
+    rank_  = [5, 10, 20]
+    regParam_ = [0.1, 1, 10]
     alpha_ = [10, 20, 40]
     param_grid = it.product(rank_, regParam_, alpha_)
     ndcg_list = []

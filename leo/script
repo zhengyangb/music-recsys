@@ -3,26 +3,62 @@ export JAVA_OPTS
 PYSPARK_PYTHON=$(which python) pyspark
 
 
+from pyspark.sql import SparkSession
+from pyspark import SparkConf
 from pyspark.ml.feature import StringIndexer
 from pyspark.ml.recommendation import ALS
 from pyspark.ml.evaluation import RegressionEvaluator
 from pyspark.mllib.evaluation import RankingMetrics
 import pyspark.sql.functions as F
 from pyspark.sql.functions import expr
+import itertools as it
 ##############################################
-train = spark.read.parquet('hdfs:/user/bm106/pub/project/cf_train.parquet')
-# downsample the dataset
-train = train.sample(False, 0.1, seed=1)
+train_path = 'hdfs:/user/bm106/pub/project/cf_train.parquet'
+val_path = 'hdfs:/user/bm106/pub/project/cf_validation.parquet'
+train = spark.read.parquet(train_path)
+val = spark.read.parquet(val_path)
 
-# transform the user and item identifiers (strings) into numerical index representations
 indexer_user = StringIndexer(inputCol="user_id", outputCol="user_id_indexed")
-train = indexer_user.fit(train).transform(train)
+indexer_user_model = indexer_user.fit(train)
+indexer_track = StringIndexer(inputCol="track_id", outputCol="track_id_indexed", handleInvalid='skip')
+indexer_track_model = indexer_track.fit(train)
 
-indexer_track = StringIndexer(inputCol="track_id", outputCol="track_id_indexed")
-train = indexer_track.fit(train).transform(train)
+train = indexer_user_model.transform(train)
+train = indexer_track_model.transform(train)
 
-train.write.format("parquet").mode("overwrite").save('transformed_train.parquet')
+val = indexer_user_model.transform(val)
+val = indexer_track_model.transform(val)
+
+i = [5,0.1,10]
+als = ALS(rank = i[0], maxIter=5, regParam=i[1], userCol="user_id_indexed", itemCol="track_id_indexed", ratingCol="count", implicitPrefs=True, \
+            alpha=i[2], nonnegative=True, coldStartStrategy="drop")
+model = als.fit(train)
+
+user_id = val.select('user_id_indexed').distinct()
+res = model.recommendForUserSubset(user_id,500)
+pred_label = res.select('user_id_indexed','recommendations.track_id_indexed')
+
+# val.createOrReplaceTempView('val')
+# user_id = spark.sql('SELECT DISTINCT(user_id_indexed) FROM val')
+# predictions = model.transform(val)
+# pred_label = predictions.select('user_id_indexed', 'track_id_indexed', 'prediction')\
+#                         .groupBy('user_id_indexed')\
+#                         .agg(expr('collect_list(track_id_indexed) as pred_item'))
+
+true_label = val.select('user_id_indexed', 'track_id_indexed')\
+                        .groupBy('user_id_indexed')\
+                        .agg(expr('collect_list(track_id_indexed) as true_item'))
+
+pred_true_rdd = pred_label.join(F.broadcast(true_label), 'user_id_indexed', 'inner') \
+            .rdd \
+            .map(lambda row: (row[1], row[2]))
+
+metrics = RankingMetrics(pred_true_rdd)
+ndcg = metrics.ndcgAt(500)
+mpa = metrics.precisionAt(500)
+print(i, ndcg, mpa)
 ##############################################
+
 
 train = spark.read.parquet('hdfs:/user/zb612/transformed_train.parquet')
 # ALS model
@@ -52,14 +88,11 @@ ndcg = metrics.ndcgAt(500)
 mpa = metrics.precisionAt(500)
 
 
-
-
 ## ALS.trainImplicit is the old version
 ## use implicitPrefs = True for the new version
 #finding best set of parameters
 ranks  = [5,10,15,20]
 reguls = [0.1, 1,10]
-iters  = [5,10,20]
 alpha = [10, 20, 40]
 
 finalModel = None
