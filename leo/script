@@ -57,6 +57,12 @@ metrics = RankingMetrics(pred_true_rdd)
 ndcg = metrics.ndcgAt(500)
 mpa = metrics.precisionAt(500)
 print(i, ndcg, mpa)
+
+
+##############################################
+
+END OF CODE
+
 ##############################################
 
 
