@@ -49,16 +49,17 @@ def main(spark, train_path, val_path):
     val = indexer_track_model.transform(val)
 
     # ALS model
-    rank_  = [5, 10, 20]
-    regParam_ = [0.1, 1, 10]
-    alpha_ = [10, 20, 40]
-    param_grid = it.product(rank_, regParam_, alpha_)
+    # rank_  = [5, 10, 20]
+    # regParam_ = [0.1, 1, 10]
+    # alpha_ = [1, 5, 10]
+    alpha_ = [5, 10]
+    # param_grid = it.product(rank_, regParam_, alpha_)
     ndcg_list = []
     mpa_list = []
-    for i in param_grid:
+    for i in alpha_:
         print('Start Training for {}'.format(i))
-        als = ALS(rank = i[0], maxIter=5, regParam=i[1], userCol="user_id_indexed", itemCol="track_id_indexed", ratingCol="count", implicitPrefs=True, \
-            alpha=i[2], nonnegative=True, coldStartStrategy="drop")
+        als = ALS(rank = 5, maxIter=5, regParam=1, userCol="user_id_indexed", itemCol="track_id_indexed", ratingCol="count", implicitPrefs=True, \
+            alpha=i, nonnegative=True, coldStartStrategy="drop")
         model = als.fit(train)
         print('Finish Training for {}'.format(i))
 
