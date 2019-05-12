@@ -44,6 +44,21 @@ als = ALS(rank = param[0], maxIter=5, regParam=param[1], userCol="user_id_indexe
             alpha=param[2], nonnegative=True, coldStartStrategy="drop")
 model = als.fit(train)
 user_id = val.select('user_id_indexed').distinct()
+
+#############################################
+# nmslib implementation
+import nmslib
+index = nmslib.init(method='hnsw', space='cosinesimil')
+user_vec = model.userFactors
+user_vec = np.array(user_vec.collect())  # TODO 
+track_vec = model.itemFactors
+track_vecty = np.array(track_vec.collect()) # TODO 
+
+index.addDataPointBatch(track_vec)
+index.createIndex({'post': 2}, print_progress=True)
+pred_label = index.knnQueryBatch(user_vec, k=500, num_threads=4)
+
+#############################################
 res = model.recommendForUserSubset(user_id,500)
 pred_label = res.select('user_id_indexed','recommendations.track_id_indexed')
 
