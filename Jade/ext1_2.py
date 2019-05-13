@@ -43,19 +43,40 @@ if drop_low == True:
 als = ALS(rank = param[0], maxIter=5, regParam=param[1], userCol="user_id_indexed", itemCol="track_id_indexed", ratingCol=rateCol, implicitPrefs=True, \
             alpha=param[2], nonnegative=True, coldStartStrategy="drop")
 model = als.fit(train)
-user_id = val.select('user_id_indexed').distinct()
 
 #############################################
 # nmslib implementation
 import nmslib
 index = nmslib.init(method='hnsw', space='cosinesimil')
+
+
+track_factor = model.itemFactors.toPandas()
+track_vec = np.array(list(track_factor['features']))
+
+user_factor = model.userFactors.toPandas()
+#user_vec = np.array(list(user_factor['features']))
+
+
+"""
 user_vec = model.userFactors
 user_vec = np.array(user_vec.collect())  # TODO 
 track_vec = model.itemFactors
 track_vecty = np.array(track_vec.collect()) # TODO 
+"""
 
 index.addDataPointBatch(track_vec)
 index.createIndex({'post': 2}, print_progress=True)
+
+# TODO
+# Select user_id from validation df and extract the features from user_factor
+#user_id = val.select('user_id_indexed').distinct()
+
+user_id = val.select(val['user_id_indexed'].alias('id')).distinct()
+
+tmp = user_id.join(user_factor,'id','inner') # TODO
+user_vec = np.array(list(tmp['features'])) # TODO
+
+
 pred_label = index.knnQueryBatch(user_vec, k=500, num_threads=4)
 
 #############################################
