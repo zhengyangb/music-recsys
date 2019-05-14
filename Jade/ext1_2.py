@@ -21,13 +21,13 @@ user_val = set(row['user_id'] for row in val.select('user_id').distinct().collec
 user_test = set(row['user_id'] for row in test.select('user_id').distinct().collect())
 
 user_prev = list(user_train - user_val - user_test)
-k = int(0.2 * len(user_prev))
-
 ## len(user_prev) = 1019318
+k = int(0.2 * len(user_prev))
 user_prev_filtered = random.sample(user_prev, k)
 ## len(user_prev_filtered) = 203863
 train = train.where(train.user_id.isin(user_prev_filtered + list(user_val) + list(user_test)))
 
+## StringIndexer
 indexer_user = StringIndexer(inputCol="user_id", outputCol="user_id_indexed")
 indexer_user_model = indexer_user.fit(train)
 indexer_track = StringIndexer(inputCol="track_id", outputCol="track_id_indexed", handleInvalid='skip')
@@ -39,6 +39,12 @@ train = indexer_track_model.transform(train)
 val = indexer_user_model.transform(val)
 val = indexer_track_model.transform(val)
 
+test = indexer_user_model.transform(test)
+test = indexer_track_model.transform(test)
+
+# train.write.format("parquet").mode("overwrite").save('train_pre.parquet')
+# val.write.format("parquet").mode("overwrite").save('val_pre.parquet')
+# test.write.format("parquet").mode("overwrite").save('test_pre.parquet')
 param = [10, 1, 10]
 log_comp = True
 drop_low = True
