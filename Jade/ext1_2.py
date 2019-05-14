@@ -18,14 +18,14 @@ test = spark.read.parquet(test_path)
 ## Downsample 
 user_train = set(row['user_id'] for row in train.select('user_id').distinct().collect())
 user_val = set(row['user_id'] for row in val.select('user_id').distinct().collect())
-user_test = set(row['user_id'] for row in test.select('user_id').distinct().collect())
+# user_test = set(row['user_id'] for row in test.select('user_id').distinct().collect())
 
-user_prev = list(user_train - user_val - user_test)
+user_prev = list(user_train - user_val)
 ## len(user_prev) = 1019318
 k = int(0.2 * len(user_prev))
 user_prev_filtered = random.sample(user_prev, k)
 ## len(user_prev_filtered) = 203863
-train = train.where(train.user_id.isin(user_prev_filtered + list(user_val) + list(user_test)))
+train = train.where(train.user_id.isin(user_prev_filtered + list(user_val)))
 
 ## StringIndexer
 indexer_user = StringIndexer(inputCol="user_id", outputCol="user_id_indexed")
@@ -61,7 +61,7 @@ if drop_low == True:
     train = train.filter(train['count']>drop_thr)
     val = val.filter(val['count']>drop_thr)
 
-als = ALS(rank = param[0], maxIter=5,     regParam=param[1], userCol="user_id_indexed", itemCol="track_id_indexed", ratingCol=rateCol, implicitPrefs=True, \
+als = ALS(rank = param[0], maxIter=10, regParam=param[1], userCol="user_id_indexed", itemCol="track_id_indexed", ratingCol=rateCol, implicitPrefs=True, \
             alpha=param[2], nonnegative=True, coldStartStrategy="drop")
 model = als.fit(train)
 
