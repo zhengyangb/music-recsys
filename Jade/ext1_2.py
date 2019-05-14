@@ -7,11 +7,26 @@ from pyspark.mllib.evaluation import RankingMetrics
 import pyspark.sql.functions as F
 from pyspark.sql.functions import expr
 import itertools as it
-
+import random
 train_path = 'hdfs:/user/bm106/pub/project/cf_train.parquet'
 val_path = 'hdfs:/user/bm106/pub/project/cf_validation.parquet'
+test_path = 'hdfs:/user/bm106/pub/project/cf_test.parquet'
 train = spark.read.parquet(train_path)
 val = spark.read.parquet(val_path)
+test = spark.read.parquet(test_path)
+
+## Downsample 
+user_train = set(row['user_id'] for row in train.select('user_id').distinct().collect())
+user_val = set(row['user_id'] for row in val.select('user_id').distinct().collect())
+user_test = set(row['user_id'] for row in test.select('user_id').distinct().collect())
+
+user_prev = list(user_train - user_val - user_test)
+k = int(0.2 * len(user_prev))
+
+## len(user_prev) = 1019318
+user_prev_filtered = random.sample(user_prev, k)
+## len(user_prev_filtered) = 203863
+train = train.where(train.user_id.isin(user_prev_filtered + list(user_val) + list(user_test)))
 
 indexer_user = StringIndexer(inputCol="user_id", outputCol="user_id_indexed")
 indexer_user_model = indexer_user.fit(train)
@@ -40,7 +55,7 @@ if drop_low == True:
     train = train.filter(train['count']>drop_thr)
     val = val.filter(val['count']>drop_thr)
 
-als = ALS(rank = param[0], maxIter=5, regParam=param[1], userCol="user_id_indexed", itemCol="track_id_indexed", ratingCol=rateCol, implicitPrefs=True, \
+als = ALS(rank = param[0], maxIter=5,     regParam=param[1], userCol="user_id_indexed", itemCol="track_id_indexed", ratingCol=rateCol, implicitPrefs=True, \
             alpha=param[2], nonnegative=True, coldStartStrategy="drop")
 model = als.fit(train)
 
