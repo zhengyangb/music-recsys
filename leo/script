@@ -30,7 +30,7 @@ val = indexer_user_model.transform(val)
 val = indexer_track_model.transform(val)
 
 i = [5,0.1,10]
-als = ALS(rank = i[0], maxIter=5, regParam=i[1], userCol="user_id_indexed", itemCol="track_id_indexed", ratingCol="count", implicitPrefs=True, \
+als = ALS(rank = i[0], maxIter=10, regParam=i[1], userCol="user_id_indexed", itemCol="track_id_indexed", ratingCol="count", implicitPrefs=True, \
             alpha=i[2], nonnegative=True, coldStartStrategy="drop")
 model = als.fit(train)
 

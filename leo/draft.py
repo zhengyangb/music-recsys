@@ -49,29 +49,29 @@ def main(spark, train_path, val_path):
     val = indexer_track_model.transform(val)
 
     # ALS model
-    # rank_  = [5, 10, 20]
-    # regParam_ = [0.1, 1, 10]
-    # alpha_ = [1, 5, 10]
-    alpha_ = [5, 10]
-    # param_grid = it.product(rank_, regParam_, alpha_)
+    rank_  = [5, 10, 20]
+    regParam_ = [0.1, 1, 10]
+    alpha_ = [1, 5, 10]
+    # alpha_ = [5, 10]
+    param_grid = it.product(rank_, regParam_, alpha_)
     ndcg_list = []
     mpa_list = []
-    for i in alpha_:
+    map_list = []
+    user_id = val.select('user_id_indexed').distinct()
+    true_label = val.select('user_id_indexed', 'track_id_indexed')\
+                    .groupBy('user_id_indexed')\
+                    .agg(expr('collect_list(track_id_indexed) as true_item'))
+    for i in param_grid:
         print('Start Training for {}'.format(i))
-        als = ALS(rank = 5, maxIter=5, regParam=1, userCol="user_id_indexed", itemCol="track_id_indexed", ratingCol="count", implicitPrefs=True, \
-            alpha=i, nonnegative=True, coldStartStrategy="drop")
+        # als = ALS(rank = i[0], maxIter=10, regParam=i[1], userCol="user_id_indexed", itemCol="track_id_indexed", ratingCol="count", implicitPrefs=True, \
+        #     alpha=i[2], nonnegative=True, coldStartStrategy="drop")
+        als = ALS(rank = i[0], maxIter=10, regParam=i[1], userCol="user_id_indexed", itemCol="track_id_indexed", ratingCol=rateCol, implicitPrefs=True, \
+            alpha=i[2], nonnegative=True, coldStartStrategy="drop")
         model = als.fit(train)
         print('Finish Training for {}'.format(i))
 
-        predictions = model.transform(val)
-
-        pred_label = predictions.select('user_id_indexed', 'track_id_indexed', 'prediction')\
-                                .groupBy('user_id_indexed')\
-                                .agg(expr('collect_list(track_id_indexed) as pred_item'))
-
-        true_label = val.select('user_id_indexed', 'track_id_indexed')\
-                                .groupBy('user_id_indexed')\
-                                .agg(expr('collect_list(track_id_indexed) as true_item'))
+        res = model.recommendForUserSubset(user_id,500)
+        pred_label = res.select('user_id_indexed','recommendations.track_id_indexed')
 
         pred_true_rdd = pred_label.join(F.broadcast(true_label), 'user_id_indexed', 'inner') \
                     .rdd \
@@ -79,11 +79,13 @@ def main(spark, train_path, val_path):
 
         print('Start Evaluating for {}'.format(i))
         metrics = RankingMetrics(pred_true_rdd)
+        map_ = metrics.meanAveragePrecision
         ndcg = metrics.ndcgAt(500)
         mpa = metrics.precisionAt(500)
         ndcg_list.append(ndcg)
         mpa_list.append(mpa)
-        print(i, ndcg, mpa)
+        map_list.append(map_)
+        print(i, map_, ndcg, mpa)
 
     pass
 

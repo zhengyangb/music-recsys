@@ -15,6 +15,9 @@ train = spark.read.parquet(train_path)
 val = spark.read.parquet(val_path)
 test = spark.read.parquet(test_path)
 
+train_path = 'train_pre_bothskip.parquet'
+val_path = 'val_pre_bothskip.parquet'
+test_path = 'test_pre_bothskip.parquet'
 ## Downsample 
 user_train = set(row['user_id'] for row in train.select('user_id').distinct().collect())
 user_val = set(row['user_id'] for row in val.select('user_id').distinct().collect())
@@ -28,7 +31,7 @@ user_prev_filtered = random.sample(user_prev, k)
 train = train.where(train.user_id.isin(user_prev_filtered + list(user_val)))
 
 ## StringIndexer
-indexer_user = StringIndexer(inputCol="user_id", outputCol="user_id_indexed")
+indexer_user = StringIndexer(inputCol="user_id", outputCol="user_id_indexed", handleInvalid = 'skip')
 indexer_user_model = indexer_user.fit(train)
 indexer_track = StringIndexer(inputCol="track_id", outputCol="track_id_indexed", handleInvalid='skip')
 indexer_track_model = indexer_track.fit(train)
@@ -101,6 +104,7 @@ user_vec = np.array(list(tmp['features'])) # TODO
 pred_label = index.knnQueryBatch(user_vec, k=500, num_threads=4)
 
 #############################################
+user_id = val.select('user_id_indexed').distinct()
 res = model.recommendForUserSubset(user_id,500)
 pred_label = res.select('user_id_indexed','recommendations.track_id_indexed')
 
@@ -113,10 +117,11 @@ pred_true_rdd = pred_label.join(F.broadcast(true_label), 'user_id_indexed', 'inn
             .map(lambda row: (row[1], row[2]))
 
 metrics = RankingMetrics(pred_true_rdd)
+map_ = metrics.meanAveragePrecision
 ndcg = metrics.ndcgAt(500)
 mpa = metrics.precisionAt(500)
 print('log_compression: ',log_comp, 'drop_low: ', drop_low)
-print(param, ndcg, mpa)
+print(param, map_, ndcg, mpa)
 
 # count_log1p: [10, 1, 10] 0.13079668607836065 0.0072854000000000035
 # drop low counts on train and val at count = 1: [10, 1, 10] 0.10417541275032478 0.003612229187286922
