@@ -1,0 +1,12 @@
+# validation
+log_compression:  True drop_low:  False param: [20, 0.1, 10] mpa: 0.008118 MAP: 0.03250237330537069
+log_compression: False drop_low: True drop_thr: 1 param: [20, 0.1, 10] mpa: 0.006792039800995022 MAP: 0.023238235217284214
+log_compression: True drop_low: True drop_thr: 1 param: [20, 0.1, 10] mpa: 0.007063349917081258 MAP: 0.021861250646539227
+log_compression: False drop_low: True drop_thr: 2 param: [20, 0.1, 10] mpa: 0.006458371335504889 MAP: 0.021275419166995355
+log_compression: True drop_low: True drop_thr: 2 param: [20, 0.1, 10] mpa: 0.006550618892508145 MAP: 0.02036998137401572
+
+# Best model by log compression only
+# 'hdfs:/user/jl9875/als_model_log1p_20_0.1_10'
+
+# test
+test_mpa: 0.00804146698279776 test_MAP: 0.03134008604826444
