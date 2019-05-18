@@ -23,9 +23,10 @@ import pyspark.sql.functions as F
 from pyspark.sql.functions import expr
 import itertools as it
 import random
+import numpy as np
 
 def main(spark, train_path, val_path, test_path, log_comp = False, drop_low = False, drop_thr = 0):
-    '''Main routine for unsupervised training
+    '''
 
     Parameters
     ----------
