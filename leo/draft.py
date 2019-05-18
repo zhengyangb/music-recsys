@@ -3,7 +3,7 @@
 '''
 Usage:
 
-    $ spark-submit train_path val_path test_path log_comp = True/False drop_low = True/False drop_thr = 0
+    $ spark-submit log_comp = True/False drop_low = True/False drop_thr = 0
     train_path = 'hdfs:/user/bm106/pub/project/cf_train.parquet'
     val_path = 'hdfs:/user/bm106/pub/project/cf_validation.parquet'
     test_path = 'hdfs:/user/bm106/pub/project/cf_test.parquet'
@@ -25,7 +25,7 @@ import itertools as it
 import random
 import numpy as np
 
-def main(spark, train_path, val_path, test_path, log_comp = False, drop_low = False, drop_thr = 0):
+def main(spark, log_comp = False, drop_low = False, drop_thr = 0):
     '''
 
     Parameters
@@ -134,12 +134,9 @@ if __name__ == "__main__":
     # spark = SparkSession.builder.config(conf=conf).appName('RecomSys').getOrCreate()
     spark = SparkSession.builder.appName('RecomSys').getOrCreate()
     # Get the filename from the command line
-    train_path = sys.argv[1]
-    val_path = sys.argv[2]
-    test_path = sys.argv[3]
-    log_comp = sys.argv[4] 
-    drop_low = sys.argv[5] 
-    drop_thr = sys.argv[6]
+    log_comp = sys.argv[1] 
+    drop_low = sys.argv[2] 
+    drop_thr = sys.argv[3]
 
     # Call our main routine
-    main(spark, train_path, val_path, test_path, log_comp, drop_low, drop_thr)
+    main(spark, log_comp, drop_low, drop_thr)
