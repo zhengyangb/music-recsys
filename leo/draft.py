@@ -79,10 +79,15 @@ def main(spark, log_comp = False, drop_low = False, drop_thr = 0):
     regParam_ = [0.1, 1, 10]
     alpha_ = [1, 5, 10]
     param_grid = it.product(rank_, regParam_, alpha_)
+
+    ## Pick out users from validation set
     user_id = val.select('user_id_indexed').distinct()
     true_label = val.select('user_id_indexed', 'track_id_indexed')\
                     .groupBy('user_id_indexed')\
                     .agg(expr('collect_list(track_id_indexed) as true_item'))
+
+    ## Log-Compression
+    ## count -> log(1+count)
     if log_comp == True:
         train = train.select('*', F.log1p('count').alias('count_log1p'))
         val = val.select('*', F.log1p('count').alias('count_log1p'))
@@ -90,6 +95,7 @@ def main(spark, log_comp = False, drop_low = False, drop_thr = 0):
     else:
         rateCol = "count"
 
+    ## Drop interactions that have counts lower than specified threhold
     if drop_low == True:
         train = train.filter(train['count']>drop_thr)
         val = val.filter(val['count']>drop_thr)
@@ -122,6 +128,7 @@ def main(spark, log_comp = False, drop_low = False, drop_thr = 0):
 # Only enter this block if we're in main
 if __name__ == "__main__":
 
+    ## Configurations
     # Create the spark session object
     # conf = SparkConf()
     # conf.set("spark.executor.memory", "16G")
