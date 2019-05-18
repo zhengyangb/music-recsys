@@ -39,6 +39,10 @@ def main(spark, train_path, val_path, test_path, log_comp = False, drop_low = Fa
     test_path : string, path to the validation parquet file to load
     '''
     ## Load in datasets
+    train_path = 'hdfs:/user/bm106/pub/project/cf_train.parquet'
+    val_path = 'hdfs:/user/bm106/pub/project/cf_validation.parquet'
+    test_path = 'hdfs:/user/bm106/pub/project/cf_test.parquet'
+
     train = spark.read.parquet(train_path)
     val = spark.read.parquet(val_path)
     test = spark.read.parquet(test_path)
