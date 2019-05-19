@@ -1,0 +1,98 @@
+from pyspark.sql import SparkSession
+from pyspark import SparkConf
+from pyspark.ml.feature import StringIndexer
+from pyspark.ml.recommendation import ALS
+from pyspark.ml.evaluation import RegressionEvaluator
+from pyspark.mllib.evaluation import RankingMetrics
+import pyspark.sql.functions as F
+from pyspark.sql.functions import expr
+import itertools as it
+##############################################
+train_path = 'hdfs:/user/bm106/pub/project/cf_train.parquet'
+val_path = 'hdfs:/user/bm106/pub/project/cf_validation.parquet'
+train = spark.read.parquet(train_path)
+val = spark.read.parquet(val_path)
+
+##################################################
+# log compression: count -> log(1+count)
+##################################################
+
+
+#train = train.withColumn('count_log1p', F.log1p(train['count']))
+#val = val.withColumn('count_log1p', F.log1p(train['count']))
+
+train = train.select('*', F.log1p('count').alias('count_log1p'))
+val = val.select('*', F.log1p('count').alias('count_log1p'))
+
+
+##################################################
+# drop low count values
+# Median: 1; 60 percentile: 2
+##################################################
+
+# If we only care about prediction on validation, then do we only need to drop the counts in validation?
+
+drop_thr = 2
+train = train.filter(train['count'] > drop_thr)
+
+#row count at 1: before 49824519; after 20229417
+#row count at 2: after 12678880 
+
+val = val.filter(val['count'] > drop_thr)
+#row count at 1: before 135938; after 56901
+#row count at 2: after 37033
+#row count at 3: after 28191 
+
+
+
+##################################################
+# StringIndexer on user_id and track_id
+##################################################
+
+
+indexer_user = StringIndexer(inputCol="user_id", outputCol="user_id_indexed")
+indexer_user_model = indexer_user.fit(train)
+indexer_track = StringIndexer(inputCol="track_id", outputCol="track_id_indexed", handleInvalid='skip')
+indexer_track_model = indexer_track.fit(train)
+
+train = indexer_user_model.transform(train)
+train = indexer_track_model.transform(train)
+
+val = indexer_user_model.transform(val)
+val = indexer_track_model.transform(val)
+
+
+##################################################
+# Train the model: ratingCol = 'count_log1p'
+##################################################
+
+rateCol = "count_log1p"
+i = [10, 1, 10]
+als = ALS(rank = i[0], maxIter=5, regParam=i[1], userCol="user_id_indexed", itemCol="track_id_indexed", ratingCol=rateCol, implicitPrefs=True, \
+            alpha=i[2], nonnegative=True, coldStartStrategy="drop")
+model = als.fit(train)
+
+user_id = val.select('user_id_indexed').distinct()
+res = model.recommendForUserSubset(user_id,500)
+pred_label = res.select('user_id_indexed','recommendations.track_id_indexed')
+
+
+true_label = val.select('user_id_indexed', 'track_id_indexed')\
+                        .groupBy('user_id_indexed')\
+                        .agg(expr('collect_list(track_id_indexed) as true_item'))
+
+pred_true_rdd = pred_label.join(F.broadcast(true_label), 'user_id_indexed', 'inner') \
+            .rdd \
+            .map(lambda row: (row[1], row[2]))
+
+metrics = RankingMetrics(pred_true_rdd)
+ndcg = metrics.ndcgAt(500)
+mpa = metrics.precisionAt(500)
+print('drop and log')
+print(i, ndcg, mpa)
+
+# count_log1p: [10, 1, 10] 0.13079668607836065 0.0072854000000000035
+# drop low counts on train and val at count = 1: [10, 1, 10] 0.10417541275032478 0.003612229187286922
+# drop low counts on train and val at count = 1 and count_log1p:[10, 1, 10] 0.10592964942409674 0.0037876640724822854
+# drop low counts on train and val at count = 2 and count_log1p:[10, 1, 10] 0.09861826950601185 0.0030149210903873754
+
