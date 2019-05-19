@@ -2,6 +2,10 @@
 
 We provide a documentation [Guide.md](Guide.md) in this repository. It might be helpful for runnning our codes. 
 
+### 📝Report
+
+The report [DSGA_1004_Final_Report.pdf](DSGA_1004_Final_Report.pdf) is also available in this repository. 
+
 ---
 
 # DSGA1004 - BIG DATA
