@@ -18,7 +18,7 @@ Contain the python file that can be run in Spark through ``spark-submit``
 
 Can be used for hyperparameter tuning on baseline model and extension-1 models
 
-- fast-search.ipynb
+- extension-2-fast-search.ipynb.ipynb
 
 Contain the codes for utilizing ``annoy`` package to accelerate query search
 
