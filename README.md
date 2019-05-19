@@ -1,3 +1,9 @@
+### ✅ Code Documentation
+
+We provide a documentation [Guide.md](Guide.md) in this repository. It might be helpful for runnning our codes. 
+
+---
+
 # DSGA1004 - BIG DATA
 ## Final project
 - Prof Brian McFee (bm106)
