@@ -8,11 +8,11 @@ To install ``annoy`` package, run the following command in the terminal: ``conda
 
 # File Description
 
-- Full-Script.py
+- full-script.py
 
 Contain the full executable python codes that can be run in Pyspark, including codes on baseline model, extension-1, hyper parameter tuning, generalization on test set and retrieve the latent factors
 
-- draft.py
+- final-code.py
 
 Contain the python file that can be run in Spark through ``spark-submit``
 
