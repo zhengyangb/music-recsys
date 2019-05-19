@@ -10,7 +10,7 @@ To install ``annoy`` package, run the following command in the terminal: ``conda
 
 - full-script.py
 
-Contain the full executable python codes that can be run in Pyspark, including codes on baseline model, extension-1, hyper parameter tuning, generalization on test set and retrieve the latent factors
+Contain the full executable python codes that can be run in PySpark, including codes on baseline model, extension-1, hyper parameter tuning, generalization on test set and retrieve the latent factors
 
 - final-code.py
 
@@ -22,7 +22,7 @@ Can be used for hyperparameter tuning on baseline model and extension-1 models
 
 Contain the codes for utilizing ``annoy`` package to accelerate query search
 
-- FinalReport.pdf
+- DSGA_1004_Final_Report.pdf
 
 Contain the report for the final project
 
