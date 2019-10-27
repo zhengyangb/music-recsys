@@ -1,107 +1,13 @@
-### ✅ Code Documentation
-
-We provide a documentation [Guide.md](Guide.md) in this repository. It might be helpful for runnning our codes. 
-
-### 📝Report
-
-The report [DSGA_1004_Final_Report.pdf](DSGA_1004_Final_Report.pdf) is also available in this repository. 
-
----
-
-# DSGA1004 - BIG DATA
-## Final project
-- Prof Brian McFee (bm106)
-- Mayank Lamba (ml5711)
-- Saumya Goyal (sg5290)
-
-*Handout date*: 2019-04-25
-
-*Submission deadline*: 2019-05-18
 
 
-# Overview
+In this project, we utilized the Spark engine to build and evaluate a music recommender system. Relying on implicit feedback modeling, we conducted experiments on building the baseline model and did hyperparamter tuning on the rank of latent factors, regularization parameter and the scaling for handling implicit feedbacks. Further, we evaluated several modification strategies on implicit feedback data and the efficiency gain achieved on accelerated query search from utilizing spatial data structure by using the Annoy package.
 
-In the final project, you will apply the tools you have learned in this class to build and evaluate a recommender system.  While the content of the final project involves recommender systems, it is intended more as an opportunity to integrate multiple techniques to solve a realistic, large-scale applied problem.
+## Evaluation
 
-For this project, you are encouraged to work in groups of no more than 3 students.
+* **Precision at *k***: This is a measure of how many of the predicted items are truly relevant, i.e. appear in the true relevant items set, regardless of the ordering of the recommended items. The mathematical definition is the following
 
-Groups of 1--2 will need to implement one extension (described below) over the baseline project for full credit.
-
-Groups of 3 will need to implement two extensions for full credit.
-
-## The data set
-
-On Dumbo's HDFS, you will find the following files in `hdfs:/user/bm106/pub/project`:
-
-  - `cf_train.parquet`
-  - `cf_validation.parquet`
-  - `cf_test.parquet`
+  ![](https://latex.codecogs.com/gif.latex?p%28k%29%3D%5Cfrac%7B1%7D%7BM%7D%20%5Csum_%7Bi%3D0%7D%5E%7BM-1%7D%20%5Cfrac%7B1%7D%7Bk%7D%20%5Csum_%7Bj%3D0%7D%5E%7B%5Cmin%20%28%7CD%7C%2C%20k%29-1%7D%20%5Coperatorname%7Brel%7D_%7BD_%7Bi%7D%7D%5Cleft%28R_%7Bi%7D%28j%29%5Cright%29%20%5Cquad%20%5Ctext%20%7B%20where%20%7D%20%5Coperatorname%7Brel%7D_%7BD%7D%28r%29%3D%5Cleft%5C%7B%5Cbegin%7Barray%7D%7Bll%7D%7B1%7D%20%26%20%7B%5Ctext%20%7B%20if%20%7D%20r%20%5Cin%20D%7D%20%5C%5C%20%7B0%7D%20%26%20%7B%5Ctext%20%7B%20otherwise%20%7D%7D%5Cend%7Barray%7D%5Cright.)
   
-  - `metadata.parquet`
-  - `features.parquet`
-  - `tags.parquet`
-  - `lyrics.parquet`
-  
-  
-The first three files contain training, validation, and testing data for the collaborative filter.  Specifically, each file contains a table of triples `(user_id, count, track_id)` which measure implicit feedback derived from listening behavior.  The first file `cf_train` contains full histories for approximately 1M users, and partial histories for 110,000 users, located at the end of the table.
+* **Mean Average Precision (MAP)**: This is also a measure of how many of the predicted items also appear in the true relevant items set. However, the MAP score accounts for the order of the recommender. It will impose higher penalty for highly relevant items not being recommended with high relevance by the model, *i.e.* the item appears near the end of recommender list or even doesnt appear in the list. The mathematical definition is the following:
 
-`cf_validation` contains the remainder of histories for 10K users, and should be used as validation data to tune your model.
-
-`cf_test` contains the remaining history for 100K users, which should be used for your final evaluation.
-
-The four additional files consist of supplementary data for each track (item) in the dataset.  You are not required to use any of these, but they may be helpful when implementing extensions to the baseline model.
-
-## Basic recommender system [80% of grade]
-
-Your recommendation model should use Spark's alternating least squares (ALS) method to learn latent factor representations for users and items.  This model has some hyper-parameters that you should tune to optimize performance on the validation set, notably: 
-
-  - the *rank* (dimension) of the latent factors,
-  - the *regularization* parameter, and
-  - *alpha*, the scaling parameter for handling implicit feedback (count) data.
-
-The choice of evaluation criteria for hyper-parameter tuning is entirely up to you, as is the range of hyper-parameters you consider, but be sure to document your choices in the final report.
-
-Once your model is trained, evaluate it on the test set using the ranking metrics provided by spark.  Evaluations should be based on predictions of the top 500 items for each user.
-
-
-### Hints
-
-You may need to transform the user and item identifiers (strings) into numerical index representations for it to work properly with Spark's ALS model.  You might save some time by doing this once and saving the results to new files in HDFS.
-
-Start small, and get the entire system working start-to-finish before investing time in hyper-parameter tuning!
-
-You may consider downsampling the data to more rapidly prototype your model.  If you do this, be careful that your downsampled data includes enough users from the validation set to test your model.
-
-
-
-## Extensions [20% of grade]
-
-For full credit, implement an extension on top of the baseline collaborative filter model.  (Again, if you're working in a group of 3 students, you must implement two extensions for full credit here.)
-
-The choice of extension is up to you, but here are some ideas:
-
-  - *Alternative model formualtions*: the `AlternatingLeastSquares` model in Spark implements a particular form of implicit-feedback modeling, but you could change its behavior by modifying the count data.  Conduct a thorough evaluation of different modification strategies (e.g., log compression, or dropping low count values) and their impact on overall accuracy.
-  - *Fast search*: use a spatial data structure (e.g., LSH or partition trees) to implement accelerated search at query time.  For this, it is best to use an existing library such as `annoy` or `nmslib`, and you will need to export the model parameters from Spark to work in your chosen environment.  For full credit, you should provide a thorough evaluation of the efficiency gains provided by your spatial data structure over a brute-force search method.
-  - *Cold-start*: using the supplementary data, build a model that can map observable feature data to the learned latent factor representation for items.  To evaluate its accuracy, simulate a cold-start scenario by holding out a subset of items during training (of the recommender model), and compare its performance to a full collaborative filter model.
-  - *Error analysis*: after training the model, analyze the errors that it makes.  Are certain types of item over- or under-represented?  Make use of the supplementary metadata and tag information to inform your analysis.
-  - *Exploration*: use the learned representation to develop a visualization of the items and users, e.g., using T-SNE or UMAP.  The visualization should somehow integrate additional information (features, metadata, or tags) to illustrate how items are distributed in the learned space.
-
-You are welcome to propose your own extension ideas, but they must be submitted in writing and approved by the course staff (Brian, Mayank, or Saumya) by 2019-05-06 at the latest.  If you want to propose an extension, please get in contact as soon as possible so that we have sufficient time to consider and approve the idea.
-
-
-# What to turn in
-
-In addition to all of your code, produce a final report (not to exceed 4 pages), describing your implementation, evaluation results, and extensions.  Your report should clearly identify the contributions of each member of your group.  If any additional software components were required in your project, your choices should be described and well motivated here.  
-
-Include a PDF copy of your report in the github repository along with your code submission.
-
-Any additional software components should be documented with installation instructions.
-
-
-# Checklist
-
-It will be helpful to commit your work in progress to the repository.  Toward this end, we recommend the following timeline:
-
-- [ ] 2019/05/08: working baseline implementation 
-- [ ] 2019/05/10: select extension(s)
-- [ ] 2019/05/18: final project submission (NO EXTENSIONS PAST THIS DATE)
+  ![](https://latex.codecogs.com/png.latex?%5Cmathrm%7BMAP%7D%3D%5Cfrac%7B1%7D%7BM%7D%20%5Csum_%7Bi%3D0%7D%5E%7BM-1%7D%20%5Cfrac%7B1%7D%7B%5Cleft%7CD_%7Bi%7D%5Cright%7C%7D%20%5Csum_%7Bj%3D0%7D%5E%7BQ-1%7D%20%5Cfrac%7B%5Cmathrm%7Brel%7D_%7BD_%7Bi%7D%7D%5Cleft%28R_%7Bi%7D%28j%29%5Cright%29%7D%7Bj%2B1%7D)
