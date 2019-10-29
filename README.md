@@ -15,8 +15,11 @@ Alternating Least Squares (ALS), an iterative algorithm, is applied to generate 
 Spatial trees utilize recursive partitioning on dataset to accelerate the searching speed for each query by reducing the time complexity from *O*(*n*) to *O*(log *n*). In terms of the brute-force method, we generated the list of top 500 recommended items by computing the dot products between one user and each item, which would be ranked by values to determine item relevance. The recom- mendation results are regarded as ground-truth, which will serve as the benchmark to calculate recall scores when we use the Annoy package.
 
 
+<p align="center">
+  <img src="README.assets/image-20191028234345897.png" alt="image-20191028234345897" style="zoom:50%;" />
+</p>
 
-<img src="README.assets/image-20191028234345897.png" alt="image-20191028234345897" style="zoom:50%;" />
+
 
 ## Implementation
 
