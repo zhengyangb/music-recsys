@@ -1,6 +1,36 @@
 
 
+# 🎸Implicit Feedback Modeling for Music Recommendation
+
 In this project, we utilized the Spark engine to build and evaluate a music recommender system. Relying on implicit feedback modeling, we conducted experiments on building the baseline model and did hyperparamter tuning on the rank of latent factors, regularization parameter and the scaling for handling implicit feedbacks. Further, we evaluated several modification strategies on implicit feedback data and the efficiency gain achieved on accelerated query search from utilizing spatial data structure by using the Annoy package.
+
+
+
+## Algorithm
+
+In this project, we intend to build a latent factor model to decompose the user-item interaction matrix into a product of user factor matrix *U* and item factor matrix *V* that consist of embeddings for users and items in a common vector space.
+
+Alternating Least Squares (ALS), an iterative algorithm, is applied to generate the user and item embedding matrices. After initializing *U* and *V* , at each iteration, we fix one matrix and solve the other matrix by least squares. Next, the newly-updated factor matrix is held constant to optimize the other matrix. The iterative steps will be repeated until convergence.
+
+## Implementation
+
+**Dataset** Our training dataset contains full histories for 1 million users and partial histories for 11 thousand users. The validation and test set consist of the remaining partial histories for those 11 thousand users. Each row in the dataset represents one interaction between the user and item. Namely, the datasets consist of three columns — `user id`, `count`, `track id` where `count` is an integer always greater than 0.
+
+**Data Preprocessing** For this project, we used PySpark to preprocess the data and built the model. Because of the limited computing resources, we chose to downsample the previous 1 million users histories in the training dataset to 20% and appended the partial histories for 11 thousand users together as our new training set. We also employed `StringIndexer` to transform the columns into indicies before feeding them to the ALS model.
+
+
+**ALS** To estimate the user and item matrices, we used the implementation of ALS from Spark’s machine learning library MLlib (pyspark.ml) that can run in parallel. After fitting the ALS model, we made top 500 item predictions for on the validation and test set and retrieved the latent factors for users and items.
+
+## Files
+
+- full-script.py
+
+  Contain the full executable python codes that can be run in PySpark, including codes on baseline model, alternative model formualtions, hyper parameter tuning, generalization on test set and retrieve the latent factors
+
+- fast-search.py
+
+  Contain the codes for utilizing ``annoy`` package to accelerate query search
+
 
 ## Evaluation
 
