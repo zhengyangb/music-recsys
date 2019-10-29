@@ -12,6 +12,12 @@ In this project, we intend to build a latent factor model to decompose the user-
 
 Alternating Least Squares (ALS), an iterative algorithm, is applied to generate the user and item embedding matrices. After initializing *U* and *V* , at each iteration, we fix one matrix and solve the other matrix by least squares. Next, the newly-updated factor matrix is held constant to optimize the other matrix. The iterative steps will be repeated until convergence.
 
+Spatial trees utilize recursive partitioning on dataset to accelerate the searching speed for each query by reducing the time complexity from *O*(*n*) to *O*(log *n*). In terms of the brute-force method, we generated the list of top 500 recommended items by computing the dot products between one user and each item, which would be ranked by values to determine item relevance. The recom- mendation results are regarded as ground-truth, which will serve as the benchmark to calculate recall scores when we use the Annoy package.
+
+
+
+<img src="README.assets/image-20191028234345897.png" alt="image-20191028234345897" style="zoom:50%;" />
+
 ## Implementation
 
 **Dataset** Our training dataset contains full histories for 1 million users and partial histories for 11 thousand users. The validation and test set consist of the remaining partial histories for those 11 thousand users. Each row in the dataset represents one interaction between the user and item. Namely, the datasets consist of three columns — `user id`, `count`, `track id` where `count` is an integer always greater than 0.
